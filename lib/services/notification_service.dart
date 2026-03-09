@@ -62,7 +62,6 @@ class NotificationService {
   static void _handleNotificationOpen(OSNotificationClickEvent event) {
     try {
       final data = event.notification.additionalData;
-      final notification = event.notification;
 
       if (data != null) {
         // Handle different notification types

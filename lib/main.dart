@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'utils/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/update_provider.dart';
 import 'services/notification_service.dart';
 
 Future<void> main() async {
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UpdateProvider()),
       ],
       child: MaterialApp(
         title: 'TASCE Mobile',

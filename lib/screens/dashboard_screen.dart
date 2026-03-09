@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/update_checker.dart';
 import 'login_screen.dart';
 import 'payslip_screen.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -122,10 +124,17 @@ class DashboardScreen extends StatelessWidget {
         break;
 
       case 'settings':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Settings coming soon!'),
-            behavior: SnackBarBehavior.floating,
+        // Navigate to settings screen with fade transition
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const SettingsScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 300),
           ),
         );
         break;
@@ -281,6 +290,14 @@ class DashboardScreen extends StatelessWidget {
               color: Colors.white,
             ),
             tooltip: 'Notifications',
+          ),
+          IconButton(
+            onPressed: () => UpdateChecker.checkForUpdates(context),
+            icon: const Icon(
+              Icons.system_update,
+              color: Colors.white,
+            ),
+            tooltip: 'Check for Updates',
           ),
           IconButton(
             onPressed: () => _showLogoutDialog(context),

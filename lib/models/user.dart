@@ -5,6 +5,7 @@ class User {
   final String email;
   final String token;
   final String name;
+  final String? employeeId;
   // Add other user fields as needed
 
   User({
@@ -12,6 +13,7 @@ class User {
     required this.email,
     required this.token,
     required this.name,
+    this.employeeId,
   });
 
   factory User.fromJson(Map<String, dynamic> json, String token) {
@@ -20,6 +22,7 @@ class User {
       email: json['email'],
       token: token,
       name: json['name'],
+      employeeId: json['employee_id'] ?? json['employeeId'],
     );
   }
 
@@ -27,5 +30,7 @@ class User {
         'id': id,
         'email': email,
         'token': token,
+        'name': name,
+        'employee_id': employeeId,
       };
 }

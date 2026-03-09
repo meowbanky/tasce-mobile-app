@@ -28,7 +28,6 @@ class _PayslipScreenState extends State<PayslipScreen> {
   bool _isLoading = false;
   bool _showAnalytics = false;
   Map<String, dynamic>? _previousPayslip;
-  bool _isLoadingComparison = false;
 
   @override
   void initState() {
@@ -288,6 +287,9 @@ class _PayslipScreenState extends State<PayslipScreen> {
         _buildPdfInfoRow('Dept', employeeInfo['department'].toString()),
         _buildPdfInfoRow('Bank', employeeInfo['bank'].toString()),
         _buildPdfInfoRow('Acct No.', employeeInfo['accountno'].toString()),
+        _buildPdfInfoRow('TIN.', employeeInfo['tin'].toString()),
+        _buildPdfInfoRow('PFA', employeeInfo['pfa']?.toString() ?? ''),
+        _buildPdfInfoRow('PFA PIN', employeeInfo['pen']?.toString() ?? ''),
         _buildPdfInfoRow('Grade/Step', employeeInfo['grade_step'].toString()),
         _buildPdfInfoRow(
             'Salary Structure', employeeInfo['salarytype'].toString()),
@@ -574,8 +576,6 @@ class _PayslipScreenState extends State<PayslipScreen> {
     if (_selectedPeriod == null) return;
 
     try {
-      setState(() => _isLoadingComparison = true);
-
       // Find the index of current period
       final currentIndex = _periods
           .indexWhere((period) => period.periodId == _selectedPeriod!.periodId);
@@ -598,8 +598,6 @@ class _PayslipScreenState extends State<PayslipScreen> {
       }
     } catch (e) {
       _showError('Error loading comparison data: $e');
-    } finally {
-      setState(() => _isLoadingComparison = false);
     }
   }
 
@@ -980,6 +978,9 @@ class _PayslipScreenState extends State<PayslipScreen> {
             _buildInfoRow('Department', employeeInfo['department'].toString()),
             _buildInfoRow('Bank', employeeInfo['bank'].toString()),
             _buildInfoRow('Account No.', employeeInfo['accountno'].toString()),
+            _buildInfoRow('TIN.', employeeInfo['tin'].toString()),
+            _buildInfoRow('PFA', employeeInfo['pfa']?.toString() ?? ''),
+            _buildInfoRow('PFA PIN', employeeInfo['pen']?.toString() ?? ''),
             _buildInfoRow('Grade/Step', employeeInfo['grade_step'].toString()),
             const SizedBox(height: 20),
             SingleChildScrollView(
@@ -1008,8 +1009,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
                               .map((e) => _buildAmountRow(
                                     e['description'].toString(),
                                     e['amount'],
-                                  ))
-                              ,
+                                  )),
                           const Divider(),
                           _buildTotalRow(
                               'Gross Pay', payrollInfo['totalEarnings']),
@@ -1036,8 +1036,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
                               .map((e) => _buildAmountRow(
                                     e['description'].toString(),
                                     e['amount'],
-                                  ))
-                              ,
+                                  )),
                           const Divider(),
                           _buildTotalRow(
                               'Tot Deduc.', payrollInfo['totalDeductions']),

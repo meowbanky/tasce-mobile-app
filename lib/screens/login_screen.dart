@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/validators.dart';
 import 'dashboard_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,12 +22,64 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isFirstSubmit = false;
+  bool _rememberLogin = false;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricType = 'Biometric';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+    _loadRememberedCredentials();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isAvailable = await authProvider.isBiometricAvailable();
+    final isEnabled = await authProvider.isBiometricEnabled();
+
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = isAvailable;
+        _biometricEnabled = isEnabled;
+      });
+
+      if (isAvailable) {
+        final biometrics = await authProvider.getAvailableBiometrics();
+        if (biometrics.isNotEmpty) {
+          setState(() {
+            if (biometrics.contains('fingerprint')) {
+              _biometricType = 'Fingerprint';
+            } else if (biometrics.contains('face')) {
+              _biometricType = 'Face ID';
+            } else if (biometrics.contains('iris')) {
+              _biometricType = 'Iris';
+            }
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final credentials = await authProvider.getRememberedCredentials();
+
+    if (mounted && credentials['email'] != null) {
+      setState(() {
+        _emailController.text = credentials['email']!;
+        _passwordController.text = credentials['password'] ?? '';
+        _rememberLogin = true;
+      });
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -88,11 +141,22 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (response['success'] == true) {
-        _showSuccessSnackBar('Login successful! Welcome back.');
-
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        // Save remember login if checked
+        await authProvider.saveRememberLogin(
+          _rememberLogin,
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
+
+        // Ask user if they want to enable biometric login
+        if (_biometricAvailable && !_biometricEnabled) {
+          _showBiometricSetupDialog();
+        } else {
+          _showSuccessSnackBar('Login successful! Welcome back.');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        }
       } else {
         _showErrorSnackBar(
             response['message'] ?? 'Login failed. Please try again.');
@@ -108,6 +172,76 @@ class _LoginScreenState extends State<LoginScreen> {
             'An unexpected error occurred. Please try again later.');
       }
     }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final response = await authProvider.loginWithBiometric();
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        _showSuccessSnackBar('Login successful! Welcome back.');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      } else {
+        _showErrorSnackBar(
+            response['message'] ?? 'Biometric login failed. Please try again.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Biometric authentication failed. Please try again.');
+    }
+  }
+
+  void _showBiometricSetupDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enable $_biometricType Login?'),
+          content: Text(
+            'Would you like to enable $_biometricType login for faster access? You can change this later in settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showSuccessSnackBar('Login successful! Welcome back.');
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                      builder: (context) => const DashboardScreen()),
+                );
+              },
+              child: const Text('Not Now'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final authProvider =
+                    Provider.of<AuthProvider>(context, listen: false);
+                await authProvider.saveBiometricCredentials(
+                  _emailController.text.trim(),
+                  _passwordController.text.trim(),
+                );
+                setState(() {
+                  _biometricEnabled = true;
+                });
+                _showSuccessSnackBar(
+                    '$_biometricType login enabled! Welcome back.');
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                      builder: (context) => const DashboardScreen()),
+                );
+              },
+              child: const Text('Enable'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -226,17 +360,36 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               // validator: Validators.validatePassword,
                             ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // Handle forgot password
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppTheme.primaryColor,
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberLogin,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberLogin = value ?? false;
+                                    });
+                                  },
+                                  activeColor: AppTheme.primaryColor,
                                 ),
-                                child: const Text('Forgot Password?'),
-                              ),
+                                Expanded(
+                                  child: const Text('Remember my login'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const ForgotPasswordScreen(),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryColor,
+                                  ),
+                                  child: const Text('Forgot Password?'),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 24),
                             SizedBox(
@@ -258,12 +411,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : const Text(
                                         'Login',
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                               ),
                             ),
+                            if (_biometricAvailable && _biometricEnabled) ...[
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: OutlinedButton(
+                                  onPressed: auth.isLoading
+                                      ? null
+                                      : _handleBiometricLogin,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryColor,
+                                    side: BorderSide(
+                                        color: AppTheme.primaryColor),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _biometricType == 'Fingerprint'
+                                        ? Icons.fingerprint
+                                        : _biometricType == 'Face ID'
+                                            ? Icons.face
+                                            : Icons.fingerprint,
+                                    size: 28,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
